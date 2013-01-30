@@ -2,13 +2,13 @@
 
 Gem::Specification.new do |s|
   s.name = %q{miloops-attachment_fu}
-  s.version = "3.2.5"
+  s.version = "3.2.6"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Rick Olson", "Steven Pothoven", "Emilio Tagua"]
   s.date = %q{2012-10-26}
   s.description = %q{This is a fork of Rick Olson’s attachment_fu adding Ruby 1.9 and Rails 3.2 support as well as some other enhancements.}
-  s.email = %q{steven@pothoven.net}
+  s.email = %q{miloops@gmail.com}
   s.extra_rdoc_files = ["README"]
   s.files = %w(
     CHANGELOG
@@ -19,7 +19,7 @@ Gem::Specification.new do |s|
     amazon_s3.yml.tpl
     rackspace_cloudfiles.yml.tpl
     lib/geometry.rb
-	lib/pothoven-attachment_fu.rb
+    lib/miloops-attachment_fu.rb
     lib/technoweenie/attachment_fu/backends/cloud_file_backend.rb
     lib/technoweenie/attachment_fu/backends/db_file_backend.rb
     lib/technoweenie/attachment_fu/backends/file_system_backend.rb
@@ -60,7 +60,7 @@ Gem::Specification.new do |s|
     vendor/red_artisan/core_image/filters/scale.rb
     vendor/red_artisan/core_image/filters/watermark.rb
   )
-  s.homepage = %q{http://github.com/pothoven/attachment_fu}
+  s.homepage = %q{http://github.com/miloops/attachment_fu}
   s.rdoc_options = ["--inline-source", "--charset=UTF-8"]
   s.require_paths = ["lib"]
   s.rubyforge_project = "nowarning"
