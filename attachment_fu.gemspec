@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-
 Gem::Specification.new do |s|
   s.name = %q{miloops-attachment_fu}
   s.version = "3.2.8"
@@ -7,9 +5,9 @@ Gem::Specification.new do |s|
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Rick Olson", "Steven Pothoven", "Emilio Tagua"]
   s.date = %q{2012-10-26}
-  s.description = %q{This is a fork of Rick Olson’s attachment_fu adding Ruby 1.9 and Rails 3.2 support as well as some other enhancements.}
+  s.description = %q{This is a fork of Rick Olson's attachment_fu adding Ruby 1.9 and Rails 3.2 support as well as some other enhancements.}
   s.email = %q{miloops@gmail.com}
-  s.extra_rdoc_files = ["README"]
+  s.has_rdoc    = false
   s.files = %w(
     CHANGELOG
     LICENSE
