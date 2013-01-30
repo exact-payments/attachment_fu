@@ -1,7 +1,7 @@
 module Technoweenie # :nodoc:
   module AttachmentFu # :nodoc:
     @@default_processors = %w(ImageScience Rmagick MiniMagick Gd2 CoreImage)
-    @@tempfile_path      = Rails.root.join( 'tmp', 'attachment_fu')
+    @@tempfile_path      = File.join(Rails.root, 'tmp', 'attachment_fu')
     @@content_types      = [
       'image/jpeg',
       'image/pjpeg',
@@ -45,22 +45,8 @@ module Technoweenie # :nodoc:
       # *  <tt>:min_size</tt> - Minimum size allowed.  1 byte is the default.
       # *  <tt>:max_size</tt> - Maximum size allowed.  1.megabyte is the default.
       # *  <tt>:size</tt> - Range of sizes allowed.  (1..1.megabyte) is the default.  This overrides the :min_size and :max_size options.
-      # *  <tt>:resize_to</tt> - Used by RMagick to resize images.  Pass either an array of width/height, or a geometry string.  Prefix geometry string with 'c' to crop image, ex. 'c100x100'
-      # *  <tt>:sharpen_on_resize</tt> - When using RMagick, setting to true will sharpen images after resizing.
-      # *  <tt>:jpeg_quality</tt> - Used to provide explicit JPEG quality for thumbnail/resize saves.  Can have multiple formats:
-      #      * Integer from 0 (basically crap) to 100 (basically lossless, fat files).
-      #      * When relying on ImageScience, you can also use one of its +JPEG_xxx+ constants for predefined ratios/settings.
-      #      * You can also use a Hash, with keys being either  thumbnail symbols (I repeat: _symbols_) or surface boundaries.
-      #        A surface boundary is a string starting with either '<' or '>=', followed by a number of pixels.  This lets you
-      #        specify per-thumbnail or per-general-thumbnail-"size" JPEG qualities. (which can be useful when you have a
-      #        _lot_ of thumbnail options).  Surface example:  +{ '<2000' => 90, '>=2000' => 75 }+.
-      #      Defaults vary depending on the processor (ImageScience: 100%, Rmagick/MiniMagick/Gd2: 75%,
-      #      CoreImage: auto-adjust). Note that only tdd-image_science (available from GitHub) currently supports explicit JPEG quality;
-      #      the default image_science currently forces 100%.
-      # *  <tt>:thumbnails</tt> - Specifies a set of thumbnails to generate.  This accepts a hash of filename suffixes and
-      #      RMagick resizing options.  If you have a polymorphic parent relationship, you can provide parent-type-specific
-      #      thumbnail settings by using a pair with the type string as key and a Hash of thumbnail definitions as value.
-      #      AttachmentFu automatically detects your first polymorphic +belongs_to+ relationship.
+      # *  <tt>:resize_to</tt> - Used by RMagick to resize images.  Pass either an array of width/height, or a geometry string.
+      # *  <tt>:thumbnails</tt> - Specifies a set of thumbnails to generate.  This accepts a hash of filename suffixes and RMagick resizing options.
       # *  <tt>:thumbnail_class</tt> - Set what class to use for thumbnails.  This attachment class is used by default.
       # *  <tt>:path_prefix</tt> - path to store the uploaded files.  Uses public/#{table_name} by default for the filesystem, and just #{table_name}
       #      for the S3 backend.  Setting this sets the :storage to :file_system.
@@ -97,7 +83,7 @@ module Technoweenie # :nodoc:
         options[:thumbnail_class]  ||= self
         options[:s3_access]        ||= :public_read
         options[:cloudfront]       ||= false
-        options[:content_type] = [options[:content_type]].flatten.collect! { |t| t == :image ? ::Technoweenie::AttachmentFu.content_types : t }.flatten unless options[:content_type].nil?
+        options[:content_type] = [options[:content_type]].flatten.collect! { |t| t == :image ? Technoweenie::AttachmentFu.content_types : t }.flatten unless options[:content_type].nil?
 
         unless options[:thumbnails].is_a?(Hash)
           raise ArgumentError, ":thumbnails option should be a hash: e.g. :thumbnails => { :foo => '50x50' }"
@@ -133,16 +119,16 @@ module Technoweenie # :nodoc:
           m.belongs_to :parent, :class_name => "::#{base_class}" unless options[:thumbnails].empty?
         end
 
-        storage_mod = ::Technoweenie::AttachmentFu::Backends.const_get("#{options[:storage].to_s.classify}Backend")
+        storage_mod = Technoweenie::AttachmentFu::Backends.const_get("#{options[:storage].to_s.classify}Backend")
         include storage_mod unless included_modules.include?(storage_mod)
 
         case attachment_options[:processor]
         when :none, nil
-          processors = ::Technoweenie::AttachmentFu.default_processors.dup
+          processors = Technoweenie::AttachmentFu.default_processors.dup
           begin
             if processors.any?
               attachment_options[:processor] = processors.first
-              processor_mod = ::Technoweenie::AttachmentFu::Processors.const_get("#{attachment_options[:processor].to_s.classify}Processor")
+              processor_mod = Technoweenie::AttachmentFu::Processors.const_get("#{attachment_options[:processor].to_s.classify}Processor")
               include processor_mod unless included_modules.include?(processor_mod)
             end
           rescue Object, Exception
@@ -153,7 +139,7 @@ module Technoweenie # :nodoc:
           end
         else
           begin
-            processor_mod = ::Technoweenie::AttachmentFu::Processors.const_get("#{attachment_options[:processor].to_s.classify}Processor")
+            processor_mod = Technoweenie::AttachmentFu::Processors.const_get("#{attachment_options[:processor].to_s.classify}Processor")
             include processor_mod unless included_modules.include?(processor_mod)
           rescue Object, Exception
             raise unless load_related_exception?($!)
@@ -177,7 +163,7 @@ module Technoweenie # :nodoc:
     end
 
     module ClassMethods
-      delegate :content_types, :to => ::Technoweenie::AttachmentFu
+      delegate :content_types, :to => Technoweenie::AttachmentFu
 
       # Performs common validations for attachment models.
       def validates_as_attachment
@@ -197,9 +183,9 @@ module Technoweenie # :nodoc:
         base.after_save :after_process_attachment
         base.after_destroy :destroy_file
         base.after_validation :process_attachment
-        #if defined?(::ActiveSupport::Callbacks)
-        #  base.define_callbacks :after_resize, :after_attachment_saved, :before_thumbnail_saved
-        #end
+        if defined?(::ActiveSupport::Callbacks)
+          base.define_callbacks :after_resize, :before_thumbnail_saved
+        end
       end
 
       unless defined?(::ActiveSupport::Callbacks)
@@ -213,19 +199,6 @@ module Technoweenie # :nodoc:
         #   end
         def after_resize(&block)
           write_inheritable_array(:after_resize, [block])
-        end
-
-        # Callback after an attachment has been saved either to the file system or the DB.
-        # Only called if the file has been changed, not necessarily if the record is updated.
-        #
-        #   class Foo < ActiveRecord::Base
-        #     acts_as_attachment
-        #     after_attachment_saved do |record|
-        #       ...
-        #     end
-        #   end
-        def after_attachment_saved(&block)
-          write_inheritable_array(:after_attachment_saved, [block])
         end
 
         # Callback before a thumbnail is saved.  Use this to pass any necessary extra attributes that may be required.
@@ -251,7 +224,7 @@ module Technoweenie # :nodoc:
 
       # Copies the given file path to a new tempfile, returning the closed tempfile.
       def copy_to_temp_file(file, temp_base_name)
-        Tempfile.new(temp_base_name, ::Technoweenie::AttachmentFu.tempfile_path).tap do |tmp|
+        Tempfile.new(temp_base_name, Technoweenie::AttachmentFu.tempfile_path).tap do |tmp|
           tmp.close
           FileUtils.cp file, tmp.path
         end
@@ -259,18 +232,11 @@ module Technoweenie # :nodoc:
 
       # Writes the given data to a new tempfile, returning the closed tempfile.
       def write_to_temp_file(data, temp_base_name)
-        Tempfile.new(temp_base_name, ::Technoweenie::AttachmentFu.tempfile_path).tap do |tmp|
+        Tempfile.new(temp_base_name, Technoweenie::AttachmentFu.tempfile_path).tap do |tmp|
           tmp.binmode
           tmp.write data
           tmp.close
         end
-      end
-
-      def polymorphic_relation_type_column
-        return @@_polymorphic_relation_type_column if defined?(@@_polymorphic_relation_type_column)
-        # Checked against ActiveRecord 1.15.6 through Edge @ 2009-08-05.
-        ref = reflections.values.detect { |r| r.macro == :belongs_to && r.options[:polymorphic] }
-        @@_polymorphic_relation_type_column = ref && ref.options[:foreign_type]
       end
     end
 
@@ -302,7 +268,7 @@ module Technoweenie # :nodoc:
           ext = s; ''
         end
         # ImageScience doesn't create gif thumbnails, only pngs
-        ext.sub!(/gif$/i, 'png') if attachment_options[:processor] == "ImageScience"
+        ext.sub!(/gif$/, 'png') if attachment_options[:processor] == "ImageScience"
         "#{basename}_#{thumbnail}#{ext}"
       end
 
@@ -311,11 +277,11 @@ module Technoweenie # :nodoc:
         thumbnailable? || raise(ThumbnailError.new("Can't create a thumbnail if the content type is not an image or there is no parent_id column"))
         find_or_initialize_thumbnail(file_name_suffix).tap do |thumb|
           thumb.temp_paths.unshift temp_file
-          thumb.send(:assign_attributes, {
+          thumb.send(:'attributes=', {
             :content_type             => content_type,
             :filename                 => thumbnail_name_for(file_name_suffix),
             :thumbnail_resize_options => size
-          }, :without_protection => true)
+          }, false)
           callback_with_args :before_thumbnail_saved, thumb
           thumb.save!
         end
@@ -338,7 +304,7 @@ module Technoweenie # :nodoc:
 
       # Returns true if the attachment data will be written to the storage system on the next save
       def save_attachment?
-        File.file?(temp_path.class == String ? temp_path : temp_path.to_filename)
+        File.file?(temp_path.to_s)
       end
 
       # nil placeholder in case this field is used in a form.
@@ -370,7 +336,7 @@ module Technoweenie # :nodoc:
           file_data.rewind
           set_temp_data file_data.read
         else
-          file_data.respond_to?(:tempfile) ? self.temp_paths.unshift( file_data.tempfile.path ) : self.temp_paths.unshift( file_data.path )
+          self.temp_paths.unshift file_data
         end
       end
 
@@ -474,28 +440,11 @@ module Technoweenie # :nodoc:
           if @saved_attachment
             if respond_to?(:process_attachment_with_processing) && thumbnailable? && !attachment_options[:thumbnails].blank? && parent_id.nil?
               temp_file = temp_path || create_temp_file
-              attachment_options[:thumbnails].each { |suffix, size|
-                if size.is_a?(Symbol)
-                  parent_type = polymorphic_parent_type
-                  next unless parent_type && [parent_type, parent_type.tableize].include?(suffix.to_s) && respond_to?(size)
-                  size = send(size)
-                end
-                if size.is_a?(Hash)
-                  parent_type = polymorphic_parent_type
-                  next unless parent_type && [parent_type, parent_type.tableize].include?(suffix.to_s)
-                  size.each { |ppt_suffix, ppt_size|
-                    create_or_update_thumbnail(temp_file, ppt_suffix, *ppt_size)
-                  }
-                else
-                  create_or_update_thumbnail(temp_file, suffix, *size)
-                end
-              }
+              attachment_options[:thumbnails].each { |suffix, size| create_or_update_thumbnail(temp_file, suffix, *size) }
             end
             save_to_storage
             @temp_paths.clear
             @saved_attachment = nil
-            #callback :after_attachment_saved
-            callback_with_args :after_attachment_saved, nil
           end
         end
 
@@ -510,9 +459,7 @@ module Technoweenie # :nodoc:
 
         if defined?(Rails) && Rails::VERSION::MAJOR >= 3
           def callback_with_args(method, arg = self)
-            if respond_to?(method)
-              send(method, arg)
-            end
+            send(method, arg) if respond_to?(method)
           end
         # Yanked from ActiveRecord::Callbacks, modified so I can pass args to the callbacks besides self.
         # Only accept blocks, however
@@ -551,27 +498,6 @@ module Technoweenie # :nodoc:
         # Removes the thumbnails for the attachment, if it has any
         def destroy_thumbnails
           self.thumbnails.each { |thumbnail| thumbnail.destroy } if thumbnailable?
-        end
-
-        def polymorphic_parent_type
-          rel_name = self.class.polymorphic_relation_type_column
-          rel_name && send(rel_name)
-        end
-
-        def get_jpeg_quality(require_0_to_100 = true)
-          quality = attachment_options[:jpeg_quality]
-          if quality.is_a?(Hash)
-            sbl_quality  = thumbnail && quality[thumbnail.to_sym]
-            sbl_quality  = nil if sbl_quality && require_0_to_100 && !sbl_quality.to_i.between?(0, 100)
-            surface      = (width || 1) * (height || 1)
-            size_quality = quality.detect { |k, v|
-              next unless k.is_a?(String) && k =~ /^(<|>=)(\d+)$/
-              op, threshold = $1, $2.to_i
-              surface.send(op, threshold)
-            }
-            quality = sbl_quality || size_quality && size_quality[1]
-          end
-          return quality && (!require_0_to_100 || quality.to_i.between?(0, 100)) ? quality : nil
         end
     end
   end
